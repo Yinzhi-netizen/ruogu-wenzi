@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="问字" />
+  <meta name="theme-color" content="#f7f1e3" />
+  <title>若谷问字</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-180.png" />
+  <link rel="stylesheet" href="./wenzi.css?v=1" />
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <span class="seal" aria-hidden="true">问字</span>
+        <div><small>忘言居 · 若谷的字典</small><strong>若谷问字</strong></div>
+      </div>
+      <button class="ghost-button" id="historyButton" type="button">我问过的字</button>
+    </header>
+
+    <section class="ask">
+      <button class="mic" id="micButton" type="button" aria-label="按一下，说出你要找的字">
+        <span class="mic-icon" aria-hidden="true">🎤</span>
+        <span class="mic-label" id="micLabel">按一下，说话</span>
+      </button>
+      <form class="ask-form" id="askForm">
+        <input id="askInput" type="text" autocomplete="off" enterkeyhint="search"
+               placeholder="说或写：鲜艳的艳" aria-label="要查的字或词" />
+        <button class="ask-button" type="submit">查</button>
+      </form>
+      <p class="ask-tip" id="askTip">像这样说：「鲜艳的艳」「蓝天的蓝」。也可以直接打一个词。</p>
+    </section>
+
+    <main id="result" aria-live="polite"></main>
+
+    <section class="welcome" id="welcome">
+      <p class="welcome-title">最近问过</p>
+      <div class="chip-row" id="recentRow"></div>
+    </section>
+  </div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <article class="sheet-panel" role="dialog" aria-modal="true">
+      <button class="sheet-close" type="button" data-close aria-label="关闭">×</button>
+      <div id="sheetBody"></div>
+    </article>
+  </div>
+
+  <script src="./vendor/hanzi-writer.min.js"></script>
+  <script src="./data/chars.js?v=1"></script>
+  <script src="./data/synonyms.js?v=1"></script>
+  <script src="./data/cards.js?v=1"></script>
+  <script src="./app.js?v=1"></script>
+  <script>
+    if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js").catch(() => {});
+  </script>
+</body>
+</html>
