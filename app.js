@@ -1,6 +1,6 @@
 (function () {
   const DATA = window.WENZI_CHARS || { chars: {}, homophones: {}, textbook: [] };
-  const SYN = window.WENZI_SYNONYMS || { groups: [], glosses: {} };
+  const SYN = { groups: [], glosses: {}, ...window.WENZI_LEXICON };
   const CARDS = window.WENZI_CARDS || {};
   const STORE_KEY = "ruogu-wenzi-v1";
   const textbook = new Set(DATA.textbook);
@@ -55,6 +55,7 @@
   }
 
   function speak(text) {
+    if (window.WENZI_WRITING) return window.WENZI_WRITING.speak(text);
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -113,6 +114,7 @@
   }
 
   function ask(raw) {
+    if (window.WENZI_WRITING && window.WENZI_WRITING.route(raw)) return;
     const query = parseQuery(raw);
     if (!query) return;
     if (query.mode === "choose") return renderChoose(query);
@@ -152,6 +154,7 @@
   }
 
   function showChar(ch, ctx, heard) {
+    if (window.WENZI_WRITING) window.WENZI_WRITING.setView("characters");
     els.welcome.hidden = true;
     const info = DATA.chars[ch];
     const card = CARDS[ch];
@@ -196,7 +199,7 @@
       <section class="card">
         <h2 class="section-title">组词 <small>📖 是课本里学过的 · 点一个词看它的近义词</small></h2>
         <div class="chip-row" id="wordRow">${words.length
-          ? words.map((w) => `<button class="word-chip${textbook.has(w) ? " is-book" : ""}${w === activeWord ? " is-active" : ""}" type="button" data-word="${escapeHtml(w)}">${markChar(w, ch)}</button>`).join("")
+          ? words.map((w) => `<button class="word-chip${textbook.has(w) ? " is-book" : ""}${w === activeWord ? " is-active" : ""}" type="button" data-word="${escapeHtml(w)}">${window.WENZI_WRITING ? window.WENZI_WRITING.ruby(w) : markChar(w, ch)}</button>`).join("")
           : `<p class="empty">这个字还没有收常用词。</p>`}</div>
       </section>
 
@@ -226,6 +229,11 @@
   function renderSynonyms(word) {
     const box = document.getElementById("synCard");
     if (!box) return;
+    if (window.WENZI_WRITING) {
+      box.innerHTML = `<h2 class="section-title">写作时，换个词</h2><p class="note">去近义词小书房，看看拼音、搭配和短例句。</p><button class="btn solid" id="openWordDesk" type="button">找「${escapeHtml(word || current.ch)}」的近义词 →</button>`;
+      document.getElementById("openWordDesk").addEventListener("click", () => window.WENZI_WRITING.route(`${word || current.ch}的近义词有哪些`));
+      return;
+    }
     const groups = word ? synIndex.get(word) || [] : [];
     if (!groups.length) {
       const others = wordsFor(current.ch).filter((w) => w !== word && synIndex.has(w)).slice(0, 6);
@@ -404,8 +412,17 @@
     openSheet();
   }
 
-  function openSheet() { els.sheet.hidden = false; document.body.style.overflow = "hidden"; }
-  function closeSheet() { els.sheet.hidden = true; document.body.style.overflow = ""; }
+  let sheetFocus = null;
+  function openSheet() { sheetFocus = document.activeElement; els.sheet.hidden = false; document.body.style.overflow = "hidden"; els.sheet.querySelector(".sheet-panel").focus(); }
+  function closeSheet() { els.sheet.hidden = true; document.body.style.overflow = ""; if (sheetFocus) sheetFocus.focus(); }
+  els.sheet.addEventListener("keydown", event => {
+    if (event.key === "Escape") return closeSheet();
+    if (event.key !== "Tab") return;
+    const buttons = [...els.sheet.querySelectorAll("button, [href], input, [tabindex='0']")];
+    const first = buttons[0], last = buttons[buttons.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement.classList.contains("sheet-panel"))) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
 
   // ---------- 语音 ----------
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -423,7 +440,8 @@
       setTip("这里不能直接听。请点键盘上的 🎤 说话，说完点「查」。", true);
       return;
     }
-    if (listening) { recognizer.stop(); return; }
+    if (recognizer) { recognizer.stop(); return; }
+    window.speechSynthesis && window.speechSynthesis.cancel();
     recognizer = new Recognition();
     recognizer.lang = "zh-CN";
     recognizer.interimResults = true;
@@ -431,25 +449,34 @@
     recognizer.onstart = () => {
       listening = true;
       els.mic.classList.add("is-listening");
+      els.mic.setAttribute("aria-pressed", "true");
       els.micLabel.textContent = "我在听…";
-      setTip("说吧，比如「鲜艳的艳」。", true);
+      setTip(window.WENZI_WRITING.getView() === "characters" ? "说吧，比如「鲜艳的艳」。" : "说吧，比如「可爱的近义词有哪些」。", true);
     };
+    let answered = false;
+    let speechError = false;
+    const timeout = window.setTimeout(() => recognizer && recognizer.stop(), 15000);
     recognizer.onresult = (event) => {
       const text = [...event.results].map((r) => r[0].transcript).join("");
       els.input.value = text;
-      if (event.results[event.results.length - 1].isFinal) ask(text);
+      if (event.results[event.results.length - 1].isFinal && !answered) { answered = true; ask(text); }
     };
     recognizer.onerror = (event) => {
+      speechError = true;
       if (event.error === "not-allowed" || event.error === "service-not-allowed") setTip("需要允许使用麦克风。也可以点键盘上的 🎤 说话。", true);
       else if (event.error === "no-speech") setTip("没听清，再按一下说一次吧。", true);
       else setTip("没听清，再试一次，或者点键盘上的 🎤 说话。", true);
     };
     recognizer.onend = () => {
+      window.clearTimeout(timeout);
+      recognizer = null;
       listening = false;
       els.mic.classList.remove("is-listening");
+      els.mic.setAttribute("aria-pressed", "false");
       els.micLabel.textContent = "按一下，说话";
+      if (!answered && !speechError) setTip("说完后，也可以点「找一找」。", false);
     };
-    try { recognizer.start(); } catch (_) { setTip("没启动成功，再按一下试试。", true); }
+    try { recognizer.start(); } catch (_) { window.clearTimeout(timeout); recognizer = null; setTip("没启动成功，再按一下试试。", true); }
   }
 
   // ---------- 事件 ----------
@@ -461,18 +488,22 @@
   });
   els.historyButton.addEventListener("click", openHistory);
   els.sheet.addEventListener("click", (event) => { if (event.target.closest("[data-close]")) closeSheet(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { if (recognizer) recognizer.abort(); window.speechSynthesis && window.speechSynthesis.cancel(); } });
+  window.addEventListener("wenzi:viewchange", () => { if (recognizer && !listening) return; if (recognizer) recognizer.stop(); });
 
   // 课本里的字，空闲时把笔顺数据预先拉一遍（Service Worker 会缓存），断网也能看
   function warmStrokes() {
     const FLAG = "ruogu-wenzi-strokes-warm-v1";
-    if (location.protocol === "file:" || localStorage.getItem(FLAG) || !navigator.serviceWorker) return;
+    let warmed = false;
+    try { warmed = localStorage.getItem(FLAG); } catch (_) {}
+    if (location.protocol === "file:" || warmed || !navigator.serviceWorker) return;
     const chars = Object.keys(DATA.chars).filter((c) => DATA.chars[c].tb);
     let index = 0;
     const next = () => {
       if (!navigator.onLine) { window.setTimeout(next, 30000); return; }
       const batch = chars.slice(index, index + 12);
       index += batch.length;
-      if (!batch.length) { localStorage.setItem(FLAG, "1"); return; }
+      if (!batch.length) { try { localStorage.setItem(FLAG, "1"); } catch (_) {} return; }
       Promise.all(batch.map((c) => fetch(`./strokes/${encodeURIComponent(c)}.json`).catch(() => {}))).then(() => window.setTimeout(next, 400));
     };
     navigator.serviceWorker.ready.then(() => window.setTimeout(next, 3000));

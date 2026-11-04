@@ -6,47 +6,75 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="问字" />
-  <meta name="theme-color" content="#f7f1e3" />
-  <title>若谷问字</title>
+  <meta name="theme-color" content="#f6f1e7" />
+  <meta name="description" content="若谷的写作小书房：说一句话找近义词，看拼音、听读音，学搭配和短例句。" />
+  <title>若谷问字 · 写作小书房</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-180.png" />
-  <link rel="stylesheet" href="./wenzi.css?v=1" />
+  <link rel="preload" href="./assets/fonts/ruogu-kai.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="./wenzi.css?v=4" />
 </head>
 <body>
   <div class="page">
     <header class="topbar">
-      <div class="brand">
+      <a class="brand" href="#synonyms" aria-label="若谷问字首页">
         <span class="seal" aria-hidden="true">问字</span>
-        <div><small>忘言居 · 若谷的字典</small><strong>若谷问字</strong></div>
-      </div>
-      <button class="ghost-button" id="historyButton" type="button">我问过的字</button>
+        <div><small>忘言居 · 写作小书房</small><strong>若谷问字</strong></div>
+      </a>
+      <button class="ghost-button" id="historyButton" type="button">我问过的字 <span aria-hidden="true">↗</span></button>
     </header>
 
-    <section class="ask">
-      <button class="mic" id="micButton" type="button" aria-label="按一下，说出你要找的字">
-        <span class="mic-icon" aria-hidden="true">🎤</span>
+    <section class="book-cover" aria-labelledby="coverTitle">
+      <div class="cover-copy">
+        <p class="eyebrow">一字一句，慢慢长大</p>
+        <h1 id="coverTitle">一个好词，<br>让故事有了<span>模样。</span></h1>
+        <p class="cover-note">把看到的、想到的，写成自己的话。</p>
+      </div>
+      <img class="cover-art" src="./assets/文字印刷机.jpg" alt="一本摊开的书和一台印刷机，纸上的图画像故事一样流淌出来" width="1024" height="768" />
+      <span class="cover-number" aria-hidden="true">若谷的文字工坊 / 01</span>
+    </section>
+    <nav class="desk-nav" aria-label="书房功能">
+      <button type="button" data-view="synonyms" aria-current="page"><span>01</span> 近义词</button>
+      <button type="button" data-view="characters"><span>02</span> 问字 · 笔顺</button>
+      <button type="button" data-view="wordbag"><span>03</span> 我的词袋 <small id="bagCount">0</small></button>
+    </nav>
+    <section class="ask" id="askDesk" aria-label="说话或打字查词">
+      <button class="mic" id="micButton" type="button" aria-label="按一下，说出想找的词" aria-pressed="false">
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>
         <span class="mic-label" id="micLabel">按一下，说话</span>
       </button>
+      <div class="ask-copy">
+      <label class="ask-heading" id="askHeading" for="askInput">想找哪个词的近义词？</label>
       <form class="ask-form" id="askForm">
         <input id="askInput" type="text" autocomplete="off" enterkeyhint="search"
-               placeholder="说或写：鲜艳的艳" aria-label="要查的字或词" />
-        <button class="ask-button" type="submit">查</button>
+               maxlength="80" placeholder="比如：可爱的近义词有哪些" aria-describedby="askTip" />
+        <button class="ask-button" type="submit">找一找 <span aria-hidden="true">→</span></button>
       </form>
-      <p class="ask-tip" id="askTip">像这样说：「鲜艳的艳」「蓝天的蓝」。也可以直接打一个词。</p>
+      <p class="ask-tip" id="askTip" role="status">可以直接说「可爱的近义词有哪些」，也可以打字。</p>
+      </div>
     </section>
 
-    <main id="result" aria-live="polite"></main>
-
+    <main>
+      <section id="writingWorkspace" aria-label="近义词与用法">
+        <div class="topic-bar" id="topicBar" aria-label="按主题找词"></div>
+        <div id="writingResult" aria-live="polite"></div>
+      </section>
+      <section id="charWorkspace" aria-label="查字与笔顺" hidden>
+    <div id="result" aria-live="polite"></div>
     <section class="welcome" id="welcome">
       <p class="welcome-title">最近问过</p>
       <div class="chip-row" id="recentRow"></div>
     </section>
+      </section>
+      <section id="wordbagWorkspace" aria-label="我的词袋" hidden></section>
+    </main>
+    <footer class="desk-footer"><span>忘言居 · 若谷问字</span><span>好词慢慢攒，故事自己写。</span></footer>
   </div>
 
   <div class="sheet" id="sheet" hidden>
     <div class="sheet-backdrop" data-close></div>
-    <article class="sheet-panel" role="dialog" aria-modal="true">
+    <article class="sheet-panel" role="dialog" aria-modal="true" aria-label="字源与查字记录" tabindex="-1">
       <button class="sheet-close" type="button" data-close aria-label="关闭">×</button>
       <div id="sheetBody"></div>
     </article>
@@ -54,9 +82,13 @@
 
   <script src="./vendor/hanzi-writer.min.js"></script>
   <script src="./data/chars.js?v=1"></script>
-  <script src="./data/synonyms.js?v=1"></script>
+  <script src="./data/lexicon.js?v=3"></script>
   <script src="./data/cards.js?v=1"></script>
-  <script src="./app.js?v=1"></script>
+  <script src="./data/writing.js?v=3"></script>
+  <script src="./data/writing-usage.js?v=4"></script>
+  <script src="./data/word-pinyin.js?v=4"></script>
+  <script src="./writing.js?v=4"></script>
+  <script src="./app.js?v=3"></script>
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js").catch(() => {});
   </script>
